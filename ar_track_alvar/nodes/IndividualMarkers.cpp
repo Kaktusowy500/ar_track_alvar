@@ -44,6 +44,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/image_encodings.h>
+#include <geometry_msgs/Quaternion.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <dynamic_reconfigure/server.h>
 #include <ar_track_alvar/ParamsConfig.h>
@@ -67,6 +68,8 @@ ros::Subscriber cloud_sub_;
 ros::Publisher arMarkerPub_;
 ros::Publisher rvizMarkerPub_;
 ros::Publisher rvizMarkerPub2_;
+ros::Publisher boundingBoxPub_;
+
 ar_track_alvar_msgs::AlvarMarkers arPoseMarkers_;
 visualization_msgs::Marker rvizMarker_;
 tf::TransformListener *tf_listener;
@@ -290,6 +293,17 @@ void GetMarkerPoses(IplImage *image, ARCloud &cloud) {
 	  pt3 = m->ros_marker_points_img[resol-1];
 	  pt1 = m->ros_marker_points_img[(resol*resol)-resol];
 	  pt2 = m->ros_marker_points_img[(resol*resol)-1];
+
+    // We asssume that only one tag is visible
+    if (i == 0){
+      gm::Quaternion bb_msg;
+      // left top, right bottom
+      bb_msg.x = pt4.x;
+      bb_msg.y = pt4.y;
+      bb_msg.z = pt2.x;
+      bb_msg.w = pt2.y;
+      boundingBoxPub_.publish(bb_msg);
+    }
 
 	  m->ros_corners_3D[0] = cloud(pt1.x, pt1.y);
 	  m->ros_corners_3D[1] = cloud(pt2.x, pt2.y);
@@ -561,6 +575,7 @@ int main(int argc, char *argv[])
   arMarkerPub_ = n.advertise < ar_track_alvar_msgs::AlvarMarkers > ("ar_pose_marker", 0);
   rvizMarkerPub_ = n.advertise < visualization_msgs::Marker > ("visualization_marker", 0);
   rvizMarkerPub2_ = n.advertise < visualization_msgs::Marker > ("ARmarker_points", 0);
+  boundingBoxPub_ = n.advertise< geometry_msgs::Quaternion > ("bounding_box", 0);
 
   // Prepare dynamic reconfiguration
   dynamic_reconfigure::Server < ar_track_alvar::ParamsConfig > server;
